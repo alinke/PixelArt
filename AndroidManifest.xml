@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-      package="com.ioiomint.ledalbum" android:versionCode="10" android:versionName="1.5">
+      package="com.ioiomint.ledalbum" android:versionCode="16" android:versionName="1.9">
       
        <uses-sdk android:minSdkVersion="8" android:targetSdkVersion="10"/>
       
@@ -17,6 +17,7 @@
             
             <activity android:name="SplashActivity"
                   android:label="@string/app_name"
+                  android:screenOrientation="portrait"
                   android:theme="@android:style/Theme.NoTitleBar">
                   <intent-filter>
                         <action android:name="android.intent.action.MAIN" />
@@ -24,7 +25,7 @@
                   </intent-filter>
             </activity>  
                  
-            <activity android:name=".MainActivity" android:launchMode="singleTask"> 
+            <activity android:name=".MainActivity"  android:screenOrientation="portrait" android:launchMode="singleTask"> 
                     <intent-filter>
                 	<action android:name="android.hardware.usb.action.USB_ACCESSORY_ATTACHED" />
             		</intent-filter>
@@ -34,14 +35,14 @@
             </activity>
             
       
-            <activity android:name=".ViewImage">
+            <activity android:name=".ViewImage"  android:screenOrientation="portrait">
                   <intent-filter>
                         <action android:name="android.intent.action.VIEW" />
                         <category android:name="android.intent.category.DEFAULT" />
                   </intent-filter>
             </activity>
-         	 <activity android:name=".preferences"></activity>
-         	 <activity android:name=".rescan"></activity>
+         	 <activity android:name=".preferences"  android:screenOrientation="portrait"></activity>
+         	 <activity android:name=".rescan"  android:screenOrientation="portrait"></activity>
       </application>
       
    

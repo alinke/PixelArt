@@ -87,7 +87,7 @@ public class MainActivity extends IOIOActivity implements OnItemClickListener  {
 	private ioio.lib.api.RgbLedMatrix.Matrix KIND;  //have to do it this way because there is a matrix library conflict
 	private android.graphics.Matrix matrix2;
     private String filename;
-    private static final String TAG = "Album";	  	
+    private static final String LOG_TAG = "pixelart";	  	
   	private int z = 1;
   	private short[] frame_ = new short[512];
   	private short[] rgb_;
@@ -117,7 +117,6 @@ public class MainActivity extends IOIOActivity implements OnItemClickListener  {
 	private Resources resources;
 	private String app_ver;	
 	private int matrix_model;
-	private final String tag = "";	
 	
 	///********** Timers
 	private ConnectTimer connectTimer; 
@@ -130,7 +129,7 @@ public class MainActivity extends IOIOActivity implements OnItemClickListener  {
 	private String setupInstructionsString; 
 	private String setupInstructionsStringTitle;
 	private int countdownCounter;
-	private static final int countdownDuration = 30;
+	private static final int countdownDuration = 45;
 	private static final int SWIPE_MIN_DISTANCE = 120;
 	private static final int SWIPE_MAX_OFF_PATH = 250;
 	private static final int SWIPE_THRESHOLD_VELOCITY = 200;
@@ -177,6 +176,10 @@ public class MainActivity extends IOIOActivity implements OnItemClickListener  {
      private TextView firstTimeSetupCounter_;
      private ProgressDialog pDialog = null;
   //   private boolean dimDuringSlideShow = false;
+     private boolean debug_;
+     private int appAlreadyStarted = 0;
+     private ioio.lib.api.RgbLedMatrix matrix_;
+     
      
      //add long click to delete an image
      
@@ -219,7 +222,7 @@ public class MainActivity extends IOIOActivity implements OnItemClickListener  {
         }
         catch (NameNotFoundException e)
         {
-            Log.v(tag, e.getMessage());
+            Log.v(LOG_TAG, e.getMessage());
         }
         
         //******** preferences code
@@ -247,7 +250,7 @@ public class MainActivity extends IOIOActivity implements OnItemClickListener  {
             extStorageDirectory = Environment.getExternalStorageDirectory().toString();
 	           
             	// File artdir = new File(basepath + "/Android/data/com.ioiomint./files");
-            	File artdir = new File(basepath + "/pixelalbum");
+            	File artdir = new File(basepath + "/pixel/pixelart");
 	            if (!artdir.exists()) { //no directory so let's now start the one time setup
 	            	sdcardImages.setVisibility(View.INVISIBLE); //hide the images as they're not loaded so we can show a splash screen instead
 	            	//showToast(getResources().getString(R.string.oneTimeSetupString));
@@ -262,9 +265,15 @@ public class MainActivity extends IOIOActivity implements OnItemClickListener  {
 	            	continueOnCreate();
 	            }
 
-        } else if (android.os.Environment.getExternalStorageState().equals(android.os.Environment.MEDIA_MOUNTED_READ_ONLY)) {
+      //  } else if (android.os.Environment.getExternalStorageState().equals(android.os.Environment.MEDIA_MOUNTED_READ_ONLY)) {
 
-            showToast("Sorry, your device does not have an accessible SD card, this app will not work");//Or use your own method ie: Toast
+           // showToast("Sorry, your device does not have an accessible SD card, this app will not work");//Or use your own method ie: Toast
+        //}
+	            
+        } else  {
+        	AlertDialog.Builder alert=new AlertDialog.Builder(this);
+ 	      	alert.setTitle("No SD Card").setIcon(R.drawable.icon).setMessage("Sorry, your device does not have an accessible SD card, this app needs to copy some images to your SD card and will not work without it.\n\nPlease exit this app and go to Android settings and check that your SD card is mounted and available and then restart this app.\n\nNote for devices that don't have external SD cards, this app will utilize the internal SD card memory but you are most likely seeing this message because your device does have an external SD card slot.").setNeutralButton("OK", null).show();
+            //showToast("Sorry, your device does not have an accessible SD card, this app will not work");//Or use your own method ie: Toast
         }
     }
     
@@ -287,43 +296,12 @@ public class MainActivity extends IOIOActivity implements OnItemClickListener  {
  		//BitmapBytes = new byte[KIND.width * KIND.height *2]; //512 * 2 = 1024 or 1024 * 2 = 2048
     }
     
-    
-    private void CopyAssets() {
-        AssetManager assetManager = getAssets();
-        String[] files = null;
-        try {
-            files = assetManager.list("");
-        } catch (IOException e) {
-            Log.e("tag", e.getMessage());
-        }
-        for (int i = 0; i < files.length; i++) {
-            InputStream in = null;
-            OutputStream out = null;
-            try {
-                in = assetManager.open("pixelalbum/" + files[i]);
-                // out = new FileOutputStream(basepath + "/pixelalbum/" + files[i]);
-                // File artdir = new File(extStorageDirectory +"/media/pixelalbum/");
-                 out = new FileOutputStream(basepath + artpath + "/pixelalbum/" + files[i]);
-               // in = assetManager.open(files[i]);
-               // out = new FileOutputStream(extStorageDirectory + "/yourAppName/txt/" + files[i]);
-                copyFile(in, out);
-                in.close();
-                in = null;
-                out.flush();
-                out.close();
-                out = null;
-            } catch (Exception e) {
-                Log.e("tag", e.getMessage());
-            }
-        }
-    }
-    
     private void copyArt() {
     	
     	AssetManager assetManager = getResources().getAssets();
         String[] files = null;
         try {
-            files = assetManager.list("pixelalbum");
+            files = assetManager.list("pixelart");
         } catch (Exception e) {
             Log.e("read clipart ERROR", e.toString());
             e.printStackTrace();
@@ -332,9 +310,9 @@ public class MainActivity extends IOIOActivity implements OnItemClickListener  {
             InputStream in = null;
             OutputStream out = null;
             try {
-              in = assetManager.open("pixelalbum/" + files[i]);
-              //out = new FileOutputStream(basepath + "/Android/data/com.ioiomint.pixelalbum/files/" + files[i]);
-              out = new FileOutputStream(basepath + "/pixelalbum/" + files[i]);
+              in = assetManager.open("pixelart/" + files[i]);
+              //out = new FileOutputStream(basepath + "/Android/data/com.ioiomint.pixelart/files/" + files[i]);
+              out = new FileOutputStream(basepath + "/pixel/pixelart/" + files[i]);
               copyFile(in, out);
               in.close();
               in = null;
@@ -344,7 +322,7 @@ public class MainActivity extends IOIOActivity implements OnItemClickListener  {
             
              
             MediaScannerConnection.scanFile(context,  //here is where we register the newly copied file to the android media content DB via forcing a media scan
-	                        new String[] { basepath + "/pixelalbum/" + files[i] }, null,
+	                        new String[] { basepath + "/pixel/pixelart/" + files[i] }, null,
 	                        new MediaScannerConnection.OnScanCompletedListener() {
 	                    public void onScanCompleted(String path, Uri uri) {
 	                        Log.i("ExternalStorage", "Scanned " + path + ":");
@@ -495,7 +473,7 @@ public class MainActivity extends IOIOActivity implements OnItemClickListener  {
                  cursor = managedQuery(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, 
                  projection, 
                  MediaStore.Images.Media.DATA + " like ? ",
-                 new String[] {"%pixelalbum%"},  
+                 new String[] {"%pixelart%"},  
                  null);
             }	
             
@@ -728,7 +706,8 @@ public class MainActivity extends IOIOActivity implements OnItemClickListener  {
     
      scanAllPics = prefs.getBoolean("pref_scanAll", false);
      slideShowMode = prefs.getBoolean("pref_slideshowMode", false);
-     noSleep = prefs.getBoolean("pref_noSleep", false);
+     noSleep = prefs.getBoolean("pref_noSleep", false);     
+     debug_ = prefs.getBoolean("pref_debugMode", false);
   //   dimDuringSlideShow = prefs.getBoolean("pref_dimDuringSlideShow", true);
      
      imageDisplayDuration = Integer.valueOf(prefs.getString(   
@@ -754,15 +733,15 @@ public class MainActivity extends IOIOActivity implements OnItemClickListener  {
     	 BitmapInputStream = getResources().openRawResource(R.raw.selectpic);
     	 break;
      case 2:
-    	 KIND = ioio.lib.api.RgbLedMatrix.Matrix.SEEEDSTUDIO_32x32; //v1
+    	 KIND = ioio.lib.api.RgbLedMatrix.Matrix.SEEEDSTUDIO_32x32_NEW; //v1   
     	 BitmapInputStream = getResources().openRawResource(R.raw.selectpic32);
     	 break;
      case 3:
-    	 KIND = ioio.lib.api.RgbLedMatrix.Matrix.SEEEDSTUDIO_32x32_NEW; //v2
+    	 KIND = ioio.lib.api.RgbLedMatrix.Matrix.SEEEDSTUDIO_32x32; //v2
     	 BitmapInputStream = getResources().openRawResource(R.raw.selectpic32);
     	 break;
      default:	    		 
-    	 KIND = ioio.lib.api.RgbLedMatrix.Matrix.SEEEDSTUDIO_32x32_NEW; //v2 as the default
+    	 KIND = ioio.lib.api.RgbLedMatrix.Matrix.SEEEDSTUDIO_32x32; //v2 as the default
     	 BitmapInputStream = getResources().openRawResource(R.raw.selectpic32);
      }
          
@@ -872,20 +851,57 @@ public class MainActivity extends IOIOActivity implements OnItemClickListener  {
 	
     
     class IOIOThread extends BaseIOIOLooper {
-  		private ioio.lib.api.RgbLedMatrix matrix_;
+  		//private ioio.lib.api.RgbLedMatrix matrix_;
 
   		@Override
   		protected void setup() throws ConnectionLostException {
   			matrix_ = ioio_.openRgbLedMatrix(KIND);
   			deviceFound = 1; //if we went here, then we are connected over bluetooth or USB
   			connectTimer.cancel(); //we can stop this since it was found
+  			
+  			matrix_.frame(frame_);  //write select pic to the matrix
+  			
+  			if (debug_ == true) {  			
+	  			showToast("Bluetooth Connected");
+	  			//showToast("App Started Flag: " + appAlreadyStarted);
+  			}
+  			
+  			if (appAlreadyStarted == 1) {  //this means we were already running and had a IOIO disconnect so show let's show what was in the matrix
+  				//matrix_.frame(frame_);  //this was causing a crash
+  				WriteImagetoMatrix();
+  			}
+  			
+  			appAlreadyStarted = 1; 
   		}
 
-  		@Override
-  		public void loop() throws ConnectionLostException {
+  	//	@Override
+  		//public void loop() throws ConnectionLostException {
   		
-  			matrix_.frame(frame_); //writes whatever is in bitmap raw 565 file buffer to the RGB LCD
-  			}	
+  			//matrix_.frame(frame_); //writes whatever is in bitmap raw 565 file buffer to the RGB LCD
+  			//}	
+  		
+  		@Override
+		public void disconnected() {
+			Log.i(LOG_TAG, "IOIO disconnected");
+			
+			
+			if (debug_ == true) {  			
+	  			showToast("Bluetooth Disconnected");
+  			}
+		}
+
+		@Override
+		public void incompatible() {  //if the wrong firmware is there
+			//AlertDialog.Builder alert=new AlertDialog.Builder(context); //causing a crash
+			//alert.setTitle(getResources().getString(R.string.notFoundString)).setIcon(R.drawable.icon).setMessage(getResources().getString(R.string.bluetoothPairingString)).setNeutralButton(getResources().getString(R.string.OKText), null).show();	
+			showToast("Incompatbile firmware!");
+			showToast("This app won't work until you flash the IOIO with the correct firmware!");
+			showToast("You can use the IOIO Manager Android app to flash the correct firmware");
+			Log.e(LOG_TAG, "Incompatbile firmware!");
+		}
+  		
+  		
+  		
   		}
 
   	@Override
@@ -944,7 +960,7 @@ public class MainActivity extends IOIOActivity implements OnItemClickListener  {
 	        	cursor = managedQuery(MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
 	                projection, 
 	                MediaStore.Images.Media.DATA + " like ? ",
-	                new String[] {"%pixelalbum%"},  
+	                new String[] {"%pixelart%"},  
 	                null);
 	        } 
 	        
@@ -961,7 +977,12 @@ public class MainActivity extends IOIOActivity implements OnItemClickListener  {
 	        // intent.putExtra("filename", imagePath);
 	        // startActivity(intent);
 	        
-	        WriteImagetoMatrix();
+	        try {
+				WriteImagetoMatrix();
+			} catch (ConnectionLostException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
     	}
     	else {
     		showToast(getString(R.string.stopSlideShowMessage)); //tell the user we're still in slideshow mode and to right swipe to stop the slideshow
@@ -969,7 +990,7 @@ public class MainActivity extends IOIOActivity implements OnItemClickListener  {
        
     }
     
-    private void WriteImagetoMatrix() {  //here we'll take a PNG, BMP, or whatever and convert it to RGB565 via a canvas, also we'll re-size the image if necessary
+    private void WriteImagetoMatrix() throws ConnectionLostException {  //here we'll take a PNG, BMP, or whatever and convert it to RGB565 via a canvas, also we'll re-size the image if necessary
     	
     	     originalImage = BitmapFactory.decodeFile(imagePath);   		 
     		 width_original = originalImage.getWidth();
@@ -980,6 +1001,14 @@ public class MainActivity extends IOIOActivity implements OnItemClickListener  {
     			 //the iamge is not the right dimensions, so we need to re-size
     			 scaleWidth = ((float) KIND.width) / width_original;
  	   		 	 scaleHeight = ((float) KIND.height) / height_original;
+ 	   		 	 
+    			//int x = 30;
+    			//int y = 30;
+    			 
+    			//scaleWidth = ((float) x) / width_original;
+  	   		 	//scaleHeight = ((float) y) / height_original;
+ 	   		 	 
+ 	   		 	 
 	 	   		 // create matrix for the manipulation
 	 	   		 matrix2 = new Matrix();
 	 	   		 // resize the bit map
@@ -994,7 +1023,7 @@ public class MainActivity extends IOIOActivity implements OnItemClickListener  {
 	 	   		 BitmapBytes = buffer.array(); //copy the buffer into the type array
     		 }
     		 else {
-    			 // then the image is already the right dimensions, no need to waste resources resizing
+    			// then the image is already the right dimensions, no need to waste resources resizing
     			 resizedFlag = 0;
     			 canvasBitmap = Bitmap.createBitmap(KIND.width, KIND.height, Config.RGB_565); 
     	   		 Canvas canvas = new Canvas(canvasBitmap);
@@ -1004,15 +1033,13 @@ public class MainActivity extends IOIOActivity implements OnItemClickListener  {
 	 	   		 BitmapBytes = buffer.array(); //copy the buffer into the type array
     		 }	   		
     		 
-    		 //now let's scale this to the right size
-    		 //	BitmapInputStream = getResources().openRawResource(R.raw.clover);
-             
-    		loadImage(); 
+			loadImage();  
+			matrix_.frame(frame_);  //write to the matrix   
     }
     
     
     @SuppressLint("ParserError")
-	private void SlideShow() {
+	private void SlideShow() throws ConnectionLostException {
     	
     //	 String[] projection = {MediaStore.Images.Media.DATA}; //maybe move this outside of slideshow since it runs everytime
 	        
@@ -1028,7 +1055,7 @@ public class MainActivity extends IOIOActivity implements OnItemClickListener  {
 	       // 	cursor = managedQuery(MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
 	        //        projection, 
 	        //        MediaStore.Images.Media.DATA + " like ? ",
-	        //        new String[] {"%pixelalbum%"},  
+	        //        new String[] {"%pixelart%"},  
 	        //        null);
 	      //  } 
 	        
@@ -1093,10 +1120,11 @@ public class MainActivity extends IOIOActivity implements OnItemClickListener  {
 		});
 	}
     
-    private void clearMatrixImage() {
+    private void clearMatrixImage() throws ConnectionLostException {
     	//let's claear the image
     	 BitmapInputStream = getResources().openRawResource(R.raw.blank); //load a blank image to clear it
-    	 loadRGB565();
+    	 loadRGB565();    	
+    	 matrix_.frame(frame_); 
     	//then let's start another timer to load the next image
     	pausebetweenimagesdurationTimer.start();  //how long the rgb matrix should be of before showing the next image
     }
@@ -1124,7 +1152,12 @@ public class MainActivity extends IOIOActivity implements OnItemClickListener  {
 		public void onFinish()
 			{
 			imagedisplaydurationTimer.cancel();//added this back to see if it will stop crashing
-			clearMatrixImage();
+			try {
+				clearMatrixImage();
+			} catch (ConnectionLostException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
 				
 			}
 
@@ -1145,7 +1178,12 @@ public class MainActivity extends IOIOActivity implements OnItemClickListener  {
 		@Override
 		public void onFinish()
 			{
-			SlideShow(); //we've paused long enough, show the next image
+			try {
+				SlideShow();
+			} catch (ConnectionLostException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			} //we've paused long enough, show the next image
 			pausebetweenimagesdurationTimer.cancel();
 				
 			}
@@ -1203,7 +1241,7 @@ public class MainActivity extends IOIOActivity implements OnItemClickListener  {
 	    				        	cursor = managedQuery(MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
 	    				                projection, 
 	    				                MediaStore.Images.Media.DATA + " like ? ",
-	    				                new String[] {"%pixelalbum%"},  
+	    				                new String[] {"%pixelart%"},  
 	    				                null);
 	    				        } 
 	    					

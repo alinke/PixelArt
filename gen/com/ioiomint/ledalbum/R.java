@@ -72,10 +72,12 @@ public final class R {
         public static final int bluetoothPairingString=0x7f080008;
         public static final int bluetooth_pair=0x7f080019;
         public static final int bluetooth_pairSummary=0x7f08001a;
+        public static final int debugMode=0x7f080037;
+        public static final int debugModeSummary=0x7f08003a;
         public static final int dialogTitleMatrix=0x7f080017;
-        public static final int dimDuringSlideShow=0x7f080037;
-        public static final int dimDuringSlideShowDefault=0x7f080038;
-        public static final int dimDuringSlideShowSummary=0x7f080039;
+        public static final int dimDuringSlideShow=0x7f08003b;
+        public static final int dimDuringSlideShowDefault=0x7f08003c;
+        public static final int dimDuringSlideShowSummary=0x7f08003d;
         public static final int firstTime_instructions=0x7f080027;
         public static final int hello_world=0x7f080001;
         public static final int imageDisplayDuration=0x7f080028;
@@ -101,6 +103,8 @@ public final class R {
         public static final int pauseBetweenImagesDurationSummary=0x7f08002f;
         public static final int prefSummary=0x7f08000e;
         public static final int prefTitle=0x7f08000c;
+        public static final int pref_debugMode=0x7f080038;
+        public static final int pref_debugModeDefault=0x7f080039;
         public static final int pref_imageDisplayDuration=0x7f080029;
         public static final int pref_noSleepDefault=0x7f080021;
         public static final int pref_pauseBetweenImagesDuration=0x7f08002d;

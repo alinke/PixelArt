@@ -1,6 +1,6 @@
 <resources>
 
-    <string name="app_name">Pixel Album</string>
+    <string name="app_name">Pixel Art</string>
     <string name="hello_world">Hello world!</string>
     <string name="menu_settings">Settings</string>
     <string name="title_activity_main">MainActivity</string>
@@ -14,17 +14,17 @@
     
    
    <string name="menu_instructions_title">Instructions</string>
-   <string name="setupInstructionsString">First pair your Android device to the Pixel LED frame which will show up as \'IOIO\' in Bluetooth using code 4545.\n\nTap an image to display it on the Pixel LED frame.\n\nSwipe from left to right to start a Slide Show and swipe from right to left to stop the Slide Show.\n\nNote the last image will remain displayed on the Pixel LED Frame even after your Android device is switched off.\n\nFollow the instructions below to add your own images to this app:\n\nConnect your Android device to your computer with a USB cable.\n\nFrom your computer, open your Android device and copy your images to the pixelalbum folder located off the root of your SD card or internal storage if your device does not have a removeable SD card.\n\nAfter done copying, select Rescan from this app\'s menu\n\nYou can also delete the sample images leaving only your images.\n\nYou\&apos;ll get the best results by pre-scaling your images to 32x32 resolution.\n\nAny image not in 32x32 resolution will be scaled automatically to 32x32.</string>
+   <string name="setupInstructionsString">First pair your Android device to the Pixel LED frame which will show up as \'IOIO\' in Bluetooth using code 4545.\n\nTap an image to display it on the Pixel LED frame.\n\nSwipe from left to right to start a Slide Show and swipe from right to left to stop the Slide Show.\n\nNote the last image will remain displayed on the Pixel LED Frame even after your Android device is switched off.\n\nFollow the instructions below to add your own images to this app:\n\nConnect your Android device to your computer with a USB cable.\n\nFrom your computer, open your Android device and copy your images to the pixel/pixelart folder of your SD card or internal storage if your device does not have a removeable SD card.\n\nAfter done copying, select Rescan from this app\'s menu\n\nYou can also delete the sample images leaving only your images.\n\nYou\&apos;ll get the best results by pre-scaling your images to 32x32 resolution.\n\nAny image not in 32x32 resolution will be scaled automatically to 32x32.</string>
    <string name="setupInstructionsStringTitle">Instructions</string>   
      
      
-    <string name="prefTitle">Pixel Album Settings</string>
+    <string name="prefTitle">Pixel Art Settings</string>
     <string name="menu_prefs_title">Settings</string>
-    <string name="prefSummary">Pixel Album Settings</string>
+    <string name="prefSummary">Pixel Art Settings</string>
     
     <string name="scanAll">Show All Album Pics</string>
     <string name="pref_scanAll_default">false</string>
-    <string name="scanAllSummary">Only images in the pixelalbum directory from the root of your SD card will be displayed. Checking this box displays all SD card pictures.</string>
+    <string name="scanAllSummary">Only images in the pixel/pixelart folder of your SD card will be displayed. Checking this box displays all SD card pictures.</string>
   
     <string name="OKText">OK</string>   
     <string name="notFoundString">Pixel LED Frame Not Found</string>   
@@ -33,7 +33,7 @@
     <string name="matrix">LED Matrix Selection</string>
     <string name="matrixSummary">Select your RGB LED Matrix model</string>    
     <string name="dialogTitleMatrix">LED Matrix Selection</string>
-    <string name="matrix_default_value">0</string>   
+    <string name="matrix_default_value">3</string>   
     
     <string name="bluetooth_pair">Blueooth Pairing</string>
     <string name="bluetooth_pairSummary">Shortcut to the Bluetooth settings screen. Pair to IOIO using code: 4545</string>
@@ -75,6 +75,12 @@
     <string name="slideShowStartVerbage">Starting Slide Show&#8230;</string>
     <string name="slideShowStopVerbage">Slide Show Stopped</string>    
     <string name="slideShowStartInstructions">Tap to display a single image or Swipe from left to right to start a Slide Show</string>
+    
+    <string name="debugMode">Debug Mode</string>    
+    <string name="pref_debugMode">pref_debugMode</string>
+    <string name="pref_debugModeDefault">false</string>    
+    <string name="debugModeSummary">Displays debug messages, use to see how often the Bluetooth connections are getting disconnected and connected as well as other debug messages</string>
+    
     
     <string name="dimDuringSlideShow">Dim During Slide Show</string>    
     <string name="dimDuringSlideShowDefault">true</string>

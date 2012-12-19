@@ -14,7 +14,7 @@
         android:paddingBottom="50dp"
         android:paddingTop="5dp"
         android:text="@string/startup_verbage_1"
-        android:textColor="#000000"
+        android:textColor="#26DBBC"
         android:textSize="50sp" />
 
     <!--
@@ -37,7 +37,7 @@
         android:gravity="center|center_vertical|left"
         android:paddingTop="5dp"
         android:text="@string/firstTime_instructions"
-        android:textColor="#000000"
+        android:textColor="#26DBBC"
         android:textSize="50sp" />
 
     <TextView
@@ -48,7 +48,7 @@
         android:layout_below="@+id/firstTimeSetup1"
         android:gravity="center|center_vertical|left"
         android:text="@string/startup_verbage_2"
-        android:textColor="#000000"
+        android:textColor="#DB2645"
         android:textSize="50sp" />
 
     <TextView
@@ -61,7 +61,7 @@
         android:layout_marginTop="113dp"
         android:gravity="center|center_vertical|left"
         android:text="20"
-        android:textColor="#DB2645"
+        android:textColor="#26DBBC"
         android:textSize="100sp" />
     
        <GridView  
