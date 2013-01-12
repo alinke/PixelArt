@@ -3,10 +3,10 @@
 <resources>
 	
 	<string-array name="matrix_options">
-    <item>Seeed 16x32 V1</item>
+    <item>PIXEL 16x32 V1</item>
     <item>Adafruit 16x32</item>
-    <item>Seeed 32x32 V1</item>
-    <item>Seeed 32x32 V2</item>
+    <item>PIXEL 32x32 V1</item>
+    <item>PIXEL 32x32 V2</item>
 	</string-array>
 	
 <string-array name="matrix_values">

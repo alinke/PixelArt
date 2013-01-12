@@ -129,7 +129,7 @@ public class MainActivity extends IOIOActivity implements OnItemClickListener  {
 	private String setupInstructionsString; 
 	private String setupInstructionsStringTitle;
 	private int countdownCounter;
-	private static final int countdownDuration = 45;
+	private static final int countdownDuration = 30;
 	private static final int SWIPE_MIN_DISTANCE = 120;
 	private static final int SWIPE_MAX_OFF_PATH = 250;
 	private static final int SWIPE_THRESHOLD_VELOCITY = 200;
