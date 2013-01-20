@@ -11,7 +11,7 @@ import android.preference.PreferenceManager;
 /**
  * This is the Splash activity which is loaded when the application is invoked, it just displays the PIXEL logo
  */
-public class SplashActivity extends Activity
+public class ArtSplash extends Activity
 {
 	// Set the display time, in milliseconds (or extract it out as a configurable parameter)
 	private final int SPLASH_DISPLAY_LENGTH = 2000;
@@ -39,10 +39,10 @@ public class SplashActivity extends Activity
 				public void run()
 				{
 					//Finish the splash activity so it can't be returned to.
-					SplashActivity.this.finish();
+					ArtSplash.this.finish();
 					// Create an Intent that will start the main activity.
-					Intent mainIntent = new Intent(SplashActivity.this, MainActivity.class);
-					SplashActivity.this.startActivity(mainIntent);
+					Intent mainIntent = new Intent(ArtSplash.this, MainActivity.class);
+					ArtSplash.this.startActivity(mainIntent);
 				}
 			}, SPLASH_DISPLAY_LENGTH);
 		
