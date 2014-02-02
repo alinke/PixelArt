@@ -15,6 +15,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Random;
 
+import ioio.lib.api.IOIO.VersionType;
 import ioio.lib.api.exception.ConnectionLostException;
 import ioio.lib.util.BaseIOIOLooper;
 import ioio.lib.util.IOIOLooper;
@@ -179,6 +180,11 @@ public class MainActivity extends IOIOActivity implements OnItemClickListener  {
      private boolean debug_;
      private int appAlreadyStarted = 0;
      private ioio.lib.api.RgbLedMatrix matrix_;
+     private static String pixelFirmware = "Not Found";
+ 	private static String pixelBootloader = "Not Found";
+ 	private static String pixelHardwareID = "Not Found";
+ 	private static String IOIOLibVersion = "Not Found";
+ 	private static VersionType v;
      
      
      //add long click to delete an image
@@ -645,10 +651,14 @@ public class MainActivity extends IOIOActivity implements OnItemClickListener  {
  	      	alert.setTitle(setupInstructionsStringTitle).setIcon(R.drawable.icon).setMessage(setupInstructionsString).setNeutralButton(OKText, null).show();
  	   }
     	
-	  if (item.getItemId() == R.id.menu_about) {
+      if (item.getItemId() == R.id.menu_about) {
 		  
 		    AlertDialog.Builder alert=new AlertDialog.Builder(this);
-	      	alert.setTitle(getString(R.string.menu_about_title)).setIcon(R.drawable.icon).setMessage(getString(R.string.menu_about_summary) + "\n\n" + getString(R.string.versionString) + " " + app_ver).setNeutralButton(OKText, null).show();	
+	      	alert.setTitle(getString(R.string.menu_about_title)).setIcon(R.drawable.icon).setMessage(getString(R.string.menu_about_summary) + "\n\n" + getString(R.string.versionString) + " " + app_ver + "\n"
+	      			+ getString(R.string.FirmwareVersionString) + " " + pixelFirmware + "\n"
+	      			+ getString(R.string.HardwareVersionString) + " " + pixelHardwareID + "\n"
+	      			+ getString(R.string.BootloaderVersionString) + " " + pixelBootloader + "\n"
+	      			+ getString(R.string.LibraryVersionString) + " " + IOIOLibVersion).setNeutralButton(getResources().getString(R.string.OKText), null).show();	
 	   }
     	
     	if (item.getItemId() == R.id.menu_prefs)
@@ -870,6 +880,13 @@ public class MainActivity extends IOIOActivity implements OnItemClickListener  {
   				//matrix_.frame(frame_);  //this was causing a crash
   				WriteImagetoMatrix();
   			}
+  			
+  		//**** let's get IOIO version info for the About Screen ****
+  			pixelFirmware = ioio_.getImplVersion(v.APP_FIRMWARE_VER);
+  			pixelBootloader = ioio_.getImplVersion(v.BOOTLOADER_VER);
+  			pixelHardwareID = ioio_.getImplVersion(v.HARDWARE_VER);
+  			IOIOLibVersion = ioio_.getImplVersion(v.IOIOLIB_VER);
+  			//**********************************************************
   			
   			appAlreadyStarted = 1; 
   		}
