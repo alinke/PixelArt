@@ -17,9 +17,6 @@ android:title="@string/menu_instructions_title"
 android:icon="@drawable/ic_menu_database"
 />
 
-<item android:id="@+id/menu_rescan"
-android:title="@string/menu_rescan_title"
-android:icon="@drawable/ic_menu_database"
-/>
+
 
 </menu>

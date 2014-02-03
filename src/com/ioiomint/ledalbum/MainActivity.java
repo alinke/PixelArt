@@ -3,12 +3,17 @@ package com.ioiomint.ledalbum;
 
 
 import java.io.BufferedInputStream;
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
+import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.io.OutputStreamWriter;
+import java.io.RandomAccessFile;
 import java.nio.ByteBuffer;
 import java.nio.ShortBuffer;
 import java.util.ArrayList;
@@ -40,6 +45,7 @@ import android.media.MediaPlayer;
 import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Bundle;
+import android.os.SystemClock;
 //import android.os.CountDownTimer;
 import android.os.Environment;
 import android.os.Handler;
@@ -68,6 +74,7 @@ import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
 import android.widget.AdapterView.OnItemClickListener;
+import android.widget.AdapterView.OnItemLongClickListener;
 import android.graphics.Matrix;
 import android.graphics.Bitmap.Config;
 import android.graphics.drawable.BitmapDrawable;
@@ -80,7 +87,7 @@ import alt.android.os.CountDownTimer;
  * Displays images from an SD card.
  */
 @SuppressLint({ "ParserError", "NewApi" })
-public class MainActivity extends IOIOActivity implements OnItemClickListener  {
+public class MainActivity extends IOIOActivity implements OnItemClickListener, OnItemLongClickListener  {
 
     //look into internet loads
 	//make an  directory, copy some files in there
@@ -142,6 +149,8 @@ public class MainActivity extends IOIOActivity implements OnItemClickListener  {
 	private int slideShowRunning = 0;
 	private boolean noSleep = false;
 	private int resizedFlag = 0;
+	public long frame_length;
+	private int x = 0;
 	
 	/**
      * Grid view holding the images.
@@ -174,17 +183,27 @@ public class MainActivity extends IOIOActivity implements OnItemClickListener  {
      private int imageDisplayDuration;
      private int pauseBetweenImagesDuration;
      private GridView sdcard_;
-     private TextView firstTimeSetupCounter_;
+     private TextView firstTimeSetup1_;
+ 	private TextView firstTimeSetup2_;
+ 	private TextView firstTimeInstructions_;
+ 	private TextView firstTimeSetupCounter_;
      private ProgressDialog pDialog = null;
   //   private boolean dimDuringSlideShow = false;
-     private boolean debug_;
-     private int appAlreadyStarted = 0;
-     private ioio.lib.api.RgbLedMatrix matrix_;
-     private static String pixelFirmware = "Not Found";
+    private boolean debug_;
+    private int appAlreadyStarted = 0;
+    private ioio.lib.api.RgbLedMatrix matrix_;
+    private static String pixelFirmware = "Not Found";
  	private static String pixelBootloader = "Not Found";
  	private static String pixelHardwareID = "Not Found";
  	private static String IOIOLibVersion = "Not Found";
  	private static VersionType v;
+ 	private  ProgressDialog progress;
+ 	private static String decodedDirPath =  Environment.getExternalStorageDirectory() + "/pixel/pngs/decoded"; 
+ 	//private static int selectedFileTotalFrames;
+	private static int selectedFileDelay;
+	private static int selectedFileResolution;
+	private static int currentResolution;
+	private static float fps;
      
      
      //add long click to delete an image
@@ -209,7 +228,20 @@ public class MainActivity extends IOIOActivity implements OnItemClickListener  {
         
       //  sdcard_ = (Gridview) findViewById(R.id.sdcard); 
        sdcardImages = (GridView) findViewById(R.id.sdcard);
-       firstTimeSetupCounter_ = (TextView) findViewById(R.id.firstTimeSetupCounter);
+      // firstTimeSetupCounter_ = (TextView) findViewById(R.id.firstTimeSetupCounter);
+      
+	   //firstTimeSetupCounter_.setVisibility(View.INVISIBLE);
+	   
+	  // sdcardImages = (GridView) findViewById(R.id.sdcard);
+	      firstTimeSetup1_ = (TextView) findViewById(R.id.firstTimeSetup1);
+	      firstTimeSetup2_ = (TextView) findViewById(R.id.firstTimeSetup2);
+	      firstTimeInstructions_ = (TextView) findViewById(R.id.firstTimeInstructions);
+	      firstTimeSetupCounter_ = (TextView) findViewById(R.id.firstTimeSetupCounter);
+	      
+	      firstTimeSetup1_.setVisibility(View.INVISIBLE);
+	      firstTimeSetup2_.setVisibility(View.INVISIBLE);
+	      firstTimeInstructions_.setVisibility(View.INVISIBLE);
+	      firstTimeSetupCounter_.setVisibility(View.INVISIBLE);
        
     // Gesture detection 
        gestureDetector = new GestureDetector(new MyGestureDetector());
@@ -256,16 +288,15 @@ public class MainActivity extends IOIOActivity implements OnItemClickListener  {
             extStorageDirectory = Environment.getExternalStorageDirectory().toString();
 	           
             	// File artdir = new File(basepath + "/Android/data/com.ioiomint./files");
-            	File artdir = new File(basepath + "/pixel/pixelart");
+            	File artdir = new File(basepath + "/pixel/pngs");
 	            if (!artdir.exists()) { //no directory so let's now start the one time setup
+	            	
 	            	sdcardImages.setVisibility(View.INVISIBLE); //hide the images as they're not loaded so we can show a splash screen instead
-	            	//showToast(getResources().getString(R.string.oneTimeSetupString));
-	            	artdir.mkdirs();
-	                copyArt(); 
-	                countdownCounter = (countdownDuration - 2);
-	                mediascanTimer = new MediaScanTimer(countdownDuration*1000,1000); //pop up a message if it's not connected by this timer
- 		            mediascanTimer.start(); //we need a delay here to give the me
-	               
+	            	//showToast(getResources().getString(R.string.oneTimeSetupString)); //replaced by direct text on view screen
+	            	
+	            	new copyFilesAsync().execute();
+	            	
+	            	
 	            }
 	            else { //the directory was already there so no need to copy files or do a media re-scan so just continue on
 	            	continueOnCreate();
@@ -283,23 +314,148 @@ public class MainActivity extends IOIOActivity implements OnItemClickListener  {
         }
     }
     
+    private class copyFilesAsync extends AsyncTask<Void, Integer, Void>{
+		 
+	     int progress_status;
+	      
+	     @Override
+	  protected void onPreExecute() {
+		   // update the UI immediately after the task is executed
+		   super.onPreExecute();
+		   
+		   progress = new ProgressDialog(MainActivity.this);
+	       //progress.setMax(selectedFileTotalFrames);
+	       progress.setTitle("Initial Setup");
+	       progress.setMessage("Copying images to your local storage....");
+	       progress.setProgressStyle(ProgressDialog.STYLE_HORIZONTAL);
+	       progress.show();
+	       progress_status = 0;
+	    
+	  }
+	      
+	  @Override
+	  protected Void doInBackground(Void... params) {
+		  	
+			File artdir = new File(basepath + "/pixel/pngs");
+			artdir.mkdirs();			
+			SystemClock.sleep(100);
+		  	copyArt(); //copy the .png and .gif files (mainly png) because we want to decode first
+	
+			//had to add this delay , otherwise especially on older phones, all the images don't load the first time
+			try {
+				Thread.sleep(4000);
+			} catch (InterruptedException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			} 
+			
+			
+		    
+	   return null;
+	  }
+	  
+	 /* private void copyNewAnimations() {
+		    copyDecodedThread("zaquarium");
+		    progress_status ++;
+		    publishProgress(progress_status);
+		    
+		    copyDecodedThread("zarcade");
+		    progress_status ++;
+		    publishProgress(progress_status);
+	  }*/
+	  
+	  @Override
+	  protected void onProgressUpdate(Integer... values) {
+	   super.onProgressUpdate(values);
+	    
+	  // progressBar.setProgress(values[0]);
+	  // firstTimeSetupCounter_.setText(values[0]+"%");
+	   progress.incrementProgressBy(1);
+	  // firstTimeSetupCounter_.setText("0%");
+	    
+	  }
+	   
+	  @Override
+	  protected void onPostExecute(Void result) {
+	   super.onPostExecute(result);
+	   progress.dismiss(); //we're done so now hide the progress update box
+	   continueOnCreate();
+	  }
+	  
+	
+	  
+		@SuppressLint("NewApi")
+		private void copyArt() {
+	    	
+	    	AssetManager assetManager = getResources().getAssets();
+	        String[] files = null;
+	        try {
+	            files = assetManager.list("pngs");
+	        } catch (Exception e) {
+	            Log.e("read clipart ERROR", e.toString());
+	            e.printStackTrace();
+	        }
+	        
+	        //let's get the total numbers of files here and set the progress bar
+	        progress.setMax(files.length);
+	        
+	        for(int i=0; i<files.length; i++) {
+	            InputStream in = null;
+	            OutputStream out = null;
+	            try {
+	              in = assetManager.open("pngs/" + files[i]);
+	              out = new FileOutputStream(basepath + "/pixel/pngs/" + files[i]);
+	              copyFile(in, out);
+	              in.close();
+	              in = null;
+	              out.flush();
+	              out.close();
+	              out = null;    
+	            
+	           progress_status ++;
+	  		   publishProgress(progress_status);  
+	  		   
+	           MediaScannerConnection.scanFile(context,  //here is where we register the newly copied file to the android media content DB via forcing a media scan
+		                        new String[] { basepath + "/pixel/pngs/" + files[i] }, null,
+		                        new MediaScannerConnection.OnScanCompletedListener() {
+		                    public void onScanCompleted(String path, Uri uri) {
+		                        Log.i("ExternalStorage", "Scanned " + path + ":");
+		                        Log.i("ExternalStorage", "-> uri=" + uri);
+		                        
+		                    }
+		          });
+	           
+	           try {  //had to add this delay here otherwise all the images don't load on the first launch, not sure why
+					Thread.sleep(50);
+				} catch (InterruptedException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				} 
+	           
+	           
+	            } catch(Exception e) {
+	                Log.e("copy clipart ERROR", e.toString());
+	                e.printStackTrace();
+	            }       
+	        }
+	    }
+		
+		
+} //end async task
+    
+    
     private void MediaScanCompleted() {
          
     	continueOnCreate();
     }
     
     private void continueOnCreate() {
+    
+	     firstTimeSetupCounter_.setVisibility(View.GONE);
     	 sdcardImages.setVisibility(View.VISIBLE);
     	 setupViews();
          setProgressBarIndeterminateVisibility(true); 
          loadImages();
-         
-     
-  		//BitmapBytes = new byte[KIND.width * KIND.height *2]; //512 * 2 = 1024 or 1024 * 2 = 2048
-        // KIND = ioio.lib.api.RgbLedMatrix.Matrix.ADAFRUIT_32x16;
-     	//BitmapInputStream = getResources().openRawResource(R.raw.selectpic);	
- 	    //frame_ = new short [KIND.width * KIND.height];
- 		//BitmapBytes = new byte[KIND.width * KIND.height *2]; //512 * 2 = 1024 or 1024 * 2 = 2048
     }
     
     private void copyArt() {
@@ -307,7 +463,7 @@ public class MainActivity extends IOIOActivity implements OnItemClickListener  {
     	AssetManager assetManager = getResources().getAssets();
         String[] files = null;
         try {
-            files = assetManager.list("pixelart");
+            files = assetManager.list("pngs");
         } catch (Exception e) {
             Log.e("read clipart ERROR", e.toString());
             e.printStackTrace();
@@ -316,9 +472,9 @@ public class MainActivity extends IOIOActivity implements OnItemClickListener  {
             InputStream in = null;
             OutputStream out = null;
             try {
-              in = assetManager.open("pixelart/" + files[i]);
+              in = assetManager.open("pngs/" + files[i]);
               //out = new FileOutputStream(basepath + "/Android/data/com.ioiomint.pixelart/files/" + files[i]);
-              out = new FileOutputStream(basepath + "/pixel/pixelart/" + files[i]);
+              out = new FileOutputStream(basepath + "/pixel/pngs/" + files[i]);
               copyFile(in, out);
               in.close();
               in = null;
@@ -328,7 +484,7 @@ public class MainActivity extends IOIOActivity implements OnItemClickListener  {
             
              
             MediaScannerConnection.scanFile(context,  //here is where we register the newly copied file to the android media content DB via forcing a media scan
-	                        new String[] { basepath + "/pixel/pixelart/" + files[i] }, null,
+	                        new String[] { basepath + "/pixel/pngs/" + files[i] }, null,
 	                        new MediaScannerConnection.OnScanCompletedListener() {
 	                    public void onScanCompleted(String path, Uri uri) {
 	                        Log.i("ExternalStorage", "Scanned " + path + ":");
@@ -370,11 +526,6 @@ public class MainActivity extends IOIOActivity implements OnItemClickListener  {
         connectTimer.cancel();  //if user closes the program, need to kill this timer or we'll get a crash
         imagedisplaydurationTimer.cancel();
  		pausebetweenimagesdurationTimer.cancel();
- 		
- 		//matrix_.frame(frame_); 
- 		
-       // mediascanTimer.cancel(); 
-        
     }
     /**
      * Setup the grid view.
@@ -382,8 +533,10 @@ public class MainActivity extends IOIOActivity implements OnItemClickListener  {
     private void setupViews() {
         //sdcardImages = (GridView) findViewById(R.id.sdcard);
         sdcardImages.setClipToPadding(false);
-        sdcardImages.setNumColumns(display.getWidth()/95);
+       // sdcardImages.setNumColumns(display.getWidth()/95);
+        sdcardImages.setNumColumns(display.getWidth()/130);
         sdcardImages.setOnItemClickListener(MainActivity.this);
+        sdcardImages.setOnItemLongClickListener(MainActivity.this);
         
       //  sdcardImages.setOnClickListener((OnClickListener) MainActivity.this);
         sdcardImages.setOnTouchListener(gestureListener);
@@ -479,7 +632,7 @@ public class MainActivity extends IOIOActivity implements OnItemClickListener  {
                  cursor = managedQuery(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, 
                  projection, 
                  MediaStore.Images.Media.DATA + " like ? ",
-                 new String[] {"%pixelart%"},  
+                 new String[] {"%pngs%"},  
                  null);
             }	
             
@@ -602,19 +755,7 @@ public class MainActivity extends IOIOActivity implements OnItemClickListener  {
     }
     
     public void loadImage() {
-  	//	try {
-  	//		int n = BitmapInputStream.read(BitmapBytes, 0, BitmapBytes.length); // reads
-  																				// the
-  																				// input
-  																				// stream
-  																				// into
-  																				// a
-  																				// byte
-  																				// array
-  		//	Arrays.fill(BitmapBytes, n, BitmapBytes.length, (byte) 0);
-  	//	} catch (IOException e) {
-  	//		e.printStackTrace();
-  	//	}
+  	
 
   		int y = 0;
   		for (int i = 0; i < frame_.length; i++) {
@@ -674,7 +815,7 @@ public class MainActivity extends IOIOActivity implements OnItemClickListener  {
     				this.startActivityForResult(intent, 0);
        }
     	
-    	if (item.getItemId() == R.id.menu_rescan)
+    	/*if (item.getItemId() == R.id.menu_rescan)  //this crashes on android 4.4 so removed it
         {
      		
     		imagedisplaydurationTimer.cancel(); 
@@ -685,7 +826,7 @@ public class MainActivity extends IOIOActivity implements OnItemClickListener  {
         				.setClass(this,
         				com.ioiomint.ledalbum.rescan.class);   
      				this.startActivityForResult(intent, 1);
-        }   	
+        }   	*/
     	
        return true;
     }
@@ -724,6 +865,10 @@ public class MainActivity extends IOIOActivity implements OnItemClickListener  {
   	        resources.getString(R.string.pref_imageDisplayDuration),
   	        resources.getString(R.string.imageDisplayDurationDefault)));   
      
+     fps = 1000.f / imageDisplayDuration*1000;
+    // fps = 1000/5000;
+    
+     
      pauseBetweenImagesDuration = Integer.valueOf(prefs.getString(   
   	        resources.getString(R.string.pref_pauseBetweenImagesDuration),
   	        resources.getString(R.string.pauseBetweenImagesDurationDefault)));  
@@ -731,6 +876,14 @@ public class MainActivity extends IOIOActivity implements OnItemClickListener  {
      matrix_model = Integer.valueOf(prefs.getString(   //the selected RGB LED Matrix Type
     	        resources.getString(R.string.selected_matrix),
     	        resources.getString(R.string.matrix_default_value))); 
+     
+     if (matrix_model == 0 || matrix_model == 1) {
+    	 currentResolution = 16;
+     }
+     else
+     {
+    	 currentResolution = 32;
+     }
      
      
      switch (matrix_model) {  //get this from the preferences
@@ -765,16 +918,7 @@ public class MainActivity extends IOIOActivity implements OnItemClickListener  {
    		imagedisplaydurationTimer = new ImageDisplayDurationTimer(imageDisplayDuration*1000,1000); //how long the image should display
  		pausebetweenimagesdurationTimer = new PauseBetweenImagesDurationTimer(pauseBetweenImagesDuration*1000,1000); //how long to show a blank screen before showing the next image
  		slideShowRunning = 0;
- 	//	imagedisplaydurationTimer.cancel(); 
- 	//	pausebetweenimagesdurationTimer.cancel();
-	 
-	// canvasBitmap = Bitmap.createBitmap(KIND.width, KIND.height, Config.RGB_565); 
-	// Canvas canvas = new Canvas(canvasBitmap);
-	// canvas.drawBitmap(originalImage, 0, 0, null);
-   //  ByteBuffer buffer = ByteBuffer.allocate(KIND.width * KIND.height *2); //Create a new buffer
-	// canvasBitmap.copyPixelsToBuffer(buffer); //copy the bitmap 565 to the buffer		
-	// BitmapBytes = buffer.array(); //copy the buffer into the type array
-   //  loadImage(); 
+ 
      
      
  }
@@ -845,10 +989,8 @@ public class MainActivity extends IOIOActivity implements OnItemClickListener  {
    			}
 
    		@Override
-   		public void onTick(long millisUntilFinished)				{
-   			//showToastShort("ONE TIME SETUP: Copying stock pictures to your SD card. Please Wait..." + countdownCounter);
+   		public void onTick(long millisUntilFinished)  {
    			setfirstTimeSetupCounter(Integer.toString(countdownCounter));
-   			//showToastShort(getResources().getString(R.string.oneTimeSetupString) + " " + countdownCounter);
    			countdownCounter--;
    		}
    	}
@@ -915,10 +1057,7 @@ public class MainActivity extends IOIOActivity implements OnItemClickListener  {
 			showToast("This app won't work until you flash the IOIO with the correct firmware!");
 			showToast("You can use the IOIO Manager Android app to flash the correct firmware");
 			Log.e(LOG_TAG, "Incompatbile firmware!");
-		}
-  		
-  		
-  		
+			}
   		}
 
   	@Override
@@ -958,8 +1097,85 @@ public class MainActivity extends IOIOActivity implements OnItemClickListener  {
      * Adapter for our image files.
      */
     
+    public  boolean onItemLongClick(AdapterView<?> parent, View v, int position, long id) {  
+    	 if (deviceFound == 1) {   
+    	    	if (slideShowRunning == 0) { 
+    	    	
+    		    	// Get the data location of the image
+    		        String[] projection = {MediaStore.Images.Media.DATA};
+    		        
+    		        if (scanAllPics == true) {
+    		            
+    		            cursor = managedQuery( MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+    		                projection, // Which columns to return
+    		                null,       // Return all rows
+    		                null,
+    		                null);
+    		        }
+    		        else {
+    		        	cursor = managedQuery(MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+    		                projection, 
+    		                MediaStore.Images.Media.DATA + " like ? ",
+    		                new String[] {"%pngs%"},  
+    		                null);
+    		        } 
+    		        
+    		       // showToast("on click");
+    		        
+    		        columnIndex = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATA);
+    		        cursor.moveToPosition(position);
+    		        // Get image filename
+    		        imagePath = cursor.getString(columnIndex);
+    		        System.gc();
+    		      
+    		        
+    		        if (pixelHardwareID.substring(0,4).equals("PIXL")) {  
+    		        	try {
+							matrix_.interactive();
+							matrix_.writeFile(fps);
+	    		        	WriteImagetoMatrix();
+	    		        	matrix_.playFile();
+						} catch (ConnectionLostException e) {
+							// TODO Auto-generated catch block
+							e.printStackTrace();
+						}
+    					
+    		        }  
+    		        else {
+    		        	 try {
+		    					WriteImagetoMatrix();
+		    				} catch (ConnectionLostException e) {
+		    					// TODO Auto-generated catch block
+		    					e.printStackTrace();
+		    				}
+    		        }
+    		        
+    		        return true;
+    	    	}
+    	    	else {
+    	    		showToast(getString(R.string.stopSlideShowMessage)); //tell the user we're still in slideshow mode and to right swipe to stop the slideshow
+    	    		return true;  
+    	    	}
+    	      }
+    	      else {
+    	    	   showToast("PIXEL was not found, did you Bluetooth pair to PIXEL? Use Code 0000 for PIXEL V2 and 4545 for PIXEL V1.");
+    			   return true;
+    	      }
+   	}
+    
     public void onItemClick(AdapterView<?> parent, View v, int position, long id) {        
         
+      if (deviceFound == 1) {   
+    	  
+    	  if (pixelHardwareID.substring(0,4).equals("PIXL")) {   //need to get things back into interactive mode
+	        	try {
+					matrix_.interactive();
+				} catch (ConnectionLostException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+	        } 
+    	  
     	if (slideShowRunning == 0) { 
     	
 	    	// Get the data location of the image
@@ -977,7 +1193,7 @@ public class MainActivity extends IOIOActivity implements OnItemClickListener  {
 	        	cursor = managedQuery(MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
 	                projection, 
 	                MediaStore.Images.Media.DATA + " like ? ",
-	                new String[] {"%pixelart%"},  
+	                new String[] {"%pngs%"},  
 	                null);
 	        } 
 	        
@@ -1004,6 +1220,11 @@ public class MainActivity extends IOIOActivity implements OnItemClickListener  {
     	else {
     		showToast(getString(R.string.stopSlideShowMessage)); //tell the user we're still in slideshow mode and to right swipe to stop the slideshow
     	}
+      }
+      else {
+    	   showToast("PIXEL was not found, did you Bluetooth pair to PIXEL? Use Code 0000 for PIXEL V2 and 4545 for PIXEL V1.");
+		  // return true;
+      }
        
     }
     
@@ -1018,13 +1239,6 @@ public class MainActivity extends IOIOActivity implements OnItemClickListener  {
     			 //the iamge is not the right dimensions, so we need to re-size
     			 scaleWidth = ((float) KIND.width) / width_original;
  	   		 	 scaleHeight = ((float) KIND.height) / height_original;
- 	   		 	 
-    			//int x = 30;
-    			//int y = 30;
-    			 
-    			//scaleWidth = ((float) x) / width_original;
-  	   		 	//scaleHeight = ((float) y) / height_original;
- 	   		 	 
  	   		 	 
 	 	   		 // create matrix for the manipulation
 	 	   		 matrix2 = new Matrix();
@@ -1054,53 +1268,354 @@ public class MainActivity extends IOIOActivity implements OnItemClickListener  {
 			matrix_.frame(frame_);  //write to the matrix   
     }
     
+    private class createSlideShowAsync extends AsyncTask<Void, Integer, Void>{
+		 
+	     int progress_status;
+	      
+	     @Override
+	  protected void onPreExecute() {
+		   // update the UI immediately after the task is executed
+		   super.onPreExecute();
+		   showToast("Creating Slide Show");
+	  }
+	      
+	  @Override
+	  protected Void doInBackground(Void... params) {
+		  	
+		  try {
+			createSlideShow();
+		} catch (ConnectionLostException e1) {
+			// TODO Auto-generated catch block
+			e1.printStackTrace();
+		}
+			
+			//had to add this delay , otherwise especially on older phones, all the images don't load the first time
+			try {
+				Thread.sleep(100);
+			} catch (InterruptedException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			} 
+	   return null;
+	  }
+	
+	  
+	  @Override
+	  protected void onProgressUpdate(Integer... values) {
+	   super.onProgressUpdate(values);
+	   //progress.incrementProgressBy(1);
+	 }
+	   
+	  @Override
+	  protected void onPostExecute(Void result) {
+	   super.onPostExecute(result);
+	   //progress.dismiss(); //we're done so now hide the progress update box
+	   //now let's put PIXEL in local playback mode
+	   try {
+		matrix_.interactive();
+		//matrix_.writeFile(imageDisplayDuration);
+		matrix_.writeFile(fps);
+		} catch (ConnectionLostException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		   writePixelAsync loadApplication = new writePixelAsync();
+		   loadApplication.execute();
+		}
+} //end async task
+    
+    private void createSlideShow() throws ConnectionLostException {
+    	//we'll need to 
+    	
+    	// Get the data location of the image
+        String[] projection = {MediaStore.Images.Media.DATA};
+        
+	       
+        	cursor = managedQuery(MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+                projection, 
+                MediaStore.Images.Media.DATA + " like ? ",
+                new String[] {"%pngs%"},  
+                null);
+	       
+    	
+	    	File decodedFileDir = new File(decodedDirPath); //pixel/decoded  ,create it if not there
+			if(decodedFileDir.exists() == false) {
+				decodedFileDir.mkdirs();
+			}
+	        	
+    		File decodedFile = new File(decodedDirPath + "/slideshow.rgb565"); //decoded/slideshow.rgb565 , if it's already there, then we need to delete
+    		if(decodedFile.exists()) {
+    			decodedFile.delete(); //delete the file as we're going to re-create it
+    		}
+    		
+    		File decodedFileTxt = new File(decodedDirPath + "/slideshow.txt"); //pixel/decoded/slideshow.txt  ,delete it if there
+			if(decodedFileTxt.exists()) {
+				decodedFileTxt.delete(); //delete the file as we're going to re-create it
+			}
+			
+			String filetag = String.valueOf(size) + "," + String.valueOf(imageDisplayDuration*1000) + "," + String.valueOf(currentResolution);  //our format is number of frames,delay 72,60,32 equals 72 frames, 60 ms time delay, 32 resolution   resolution is 16 for 16x32 or 32 for 32x32 led matrix, we need this in case the user changes the resolution in the app, then we'd need to catch this mismatch and re-decode
+	        
+	        String exStorageState = Environment.getExternalStorageState();
+	     	if (Environment.MEDIA_MOUNTED.equals(exStorageState)){
+	     		try {
+	     			
+	     		   File myFile = new File(decodedDirPath + "/" + "slideshow.txt");  //decoded/slideshow.txt					       
+	     		   myFile.createNewFile();
+		           FileOutputStream fOut = null;
+				   fOut = new FileOutputStream(myFile);
+		           OutputStreamWriter myOutWriter = new OutputStreamWriter(fOut);
+				   myOutWriter.append(filetag);
+				   myOutWriter.close();
+				   fOut.close();
+	     			
+	     		} catch (IOException e) {
+	     			e.printStackTrace();
+	     			//Toast.makeText(this, "Couldn't save", Toast.LENGTH_SHORT);
+	     		}
+	     	}	
+		
+    	
+    		slideshowPosition = 0;
+	        
+	        for (i=0;i<size;i++) {
+		        
+		        cursor.moveToPosition(slideshowPosition);
+		        columnIndex = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATA); //this is crashing things
+		        //showToast("colum index: " + getString(columnIndex)); //this does not work for some reason and causes slideshow to not go
+		        slideshowPosition++; //increment it so we can play the next one
+		        
+		        // Get image filename
+		        imagePath = cursor.getString(columnIndex);
+		      //  System.gc();
+		       // showToastShort("path: " + imagePath);
+		        WriteImagetoMatrix();	        
+		      
+		        try {
+					appendWrite(BitmapBytes, decodedDirPath + "/" + "slideshow" + ".rgb565");
+				} catch (IOException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+	        }
+    }
+    
+    public class writePixelAsync extends AsyncTask<Void, Integer, Void>{
+		
+		 int progress_status;
+	      
+		  @Override
+		  protected void onPreExecute() {
+	      super.onPreExecute();
+	    
+	     progress = new ProgressDialog(MainActivity.this);
+		        progress.setMax(size);
+		        progress.setTitle("Writing Slide Show to PIXEL");
+		        progress.setProgressStyle(ProgressDialog.STYLE_HORIZONTAL);
+		        progress.show();
+		  }
+	      
+	  @Override
+	  protected Void doInBackground(Void... params) {
+			
+	  int count;
+	  for (count=0;count<size-1;count++) {  //size is the number of slides
+				 
+				
+				  File file = new File(decodedDirPath + "/" + "slideshow" + ".rgb565"); //this is one big file now, no longer separate files
+				  
+					RandomAccessFile raf = null;
+				  
+					//let's setup the seeker object
+					try {
+						raf = new RandomAccessFile(file, "r");
+						
+					} catch (FileNotFoundException e2) {
+						// TODO Auto-generated catch block
+						e2.printStackTrace();
+					}  // "r" means open the file for reading
+					
+					if (x == size) { // Manju - Reached End of the file.
+		   				x = 0;
+		   				try {
+							raf.seek(0); //move pointer back to the beginning of the file
+						} catch (IOException e) {
+							// TODO Auto-generated catch block
+							e.printStackTrace();
+						} 
+		   			}
+					
+					 switch (selectedFileResolution) { //16x32 matrix = 1024k frame size, 32x32 matrix = 2048k frame size
+			            case 16: frame_length = 1048;
+			                     break;
+			            case 32: frame_length = 2048;
+			                     break;
+			            case 64: frame_length = 4096;
+			                     break;
+			            default: frame_length = 2048;
+			                     break;
+			          }
+					 
+					//now let's see forward to a part of the file
+						try {
+							raf.seek(x*frame_length);
+						} catch (IOException e2) {
+							// TODO Auto-generated catch block
+							e2.printStackTrace();
+						} 
+						//Log.d("PixelAnimations","from sd card write, x is: " + x);
+						x++;
+						
+						if (frame_length > Integer.MAX_VALUE) {
+			   			    try {
+								throw new IOException("The file is too big");
+							} catch (IOException e) {
+								// TODO Auto-generated catch block
+								e.printStackTrace();
+							}
+			   			}
+						
+						// Create the byte array to hold the data
+			   			//byte[] bytes = new byte[(int)length];
+			   			BitmapBytes = new byte[(int)frame_length];
+			   			 
+			   			// Read in the bytes
+			   			int offset = 0;
+			   			int numRead = 0;
+			   			try {
+							while (offset < BitmapBytes.length && (numRead=raf.read(BitmapBytes, offset, BitmapBytes.length-offset)) >= 0) {
+							    offset += numRead;
+							}
+						} catch (IOException e1) {
+							// TODO Auto-generated catch block
+							e1.printStackTrace();
+						}
+			   			 
+			   			// Ensure all the bytes have been read in
+			   			if (offset < BitmapBytes.length) {
+			   			    try {
+								throw new IOException("The file was not completely read: "+file.getName());
+							} catch (IOException e) {
+								// TODO Auto-generated catch block
+								e.printStackTrace();
+							}
+			   			}
+			   			 
+			   			// Close the input stream, all file contents are in the bytes variable
+			   			try {
+			   				raf.close();
+						} catch (IOException e1) {
+							// TODO Auto-generated catch block
+							e1.printStackTrace();
+						}	
+							
+							//now that we have the byte array loaded, load it into the frame short array
+							
+						int y = 0;
+						for (int i = 0; i < frame_.length; i++) {
+							frame_[i] = (short) (((short) BitmapBytes[y] & 0xFF) | (((short) BitmapBytes[y + 1] & 0xFF) << 8));
+							y = y + 2;
+						}
+					
+						//need to add something in here if the transfer got interruped, then go back to interactive mode and start over
+						//downloadCounter++;
+					   	try {
+					   	 Log.i("PixelAnimations ","Starting-->"+ count + " " + String.valueOf(size-1));
+					   		matrix_.frame(frame_);
+					   		progress_status++;
+						    publishProgress(progress_status);
+					   	
+						} catch (ConnectionLostException e) {
+							// TODO Auto-generated catch block
+							e.printStackTrace();
+						}
+			  }  // end for
+		  
+			//progress.incrementProgressBy(1);
+			//copyDecodedThread("0rain");
+			
+		    
+	   return null;
+	  }
+	  
+	  @Override
+	  protected void onProgressUpdate(Integer... values) {
+	   super.onProgressUpdate(values);
+	   progress.incrementProgressBy(1);
+	  }
+	   
+	  @Override
+	  protected void onPostExecute(Void result) {
+		  progress.dismiss();
+	
+	 
+	   try {
+		matrix_.playFile();
+	} catch (ConnectionLostException e) {
+		// TODO Auto-generated catch block
+		e.printStackTrace();
+	}
+	  super.onPostExecute(result);
+}
+	
+}
+    
+    
+    
+    public void appendWrite(byte[] data, String filename) throws IOException {
+		 FileOutputStream fos = new FileOutputStream(filename, true);  //true means append, false is over-write
+	     fos.write(data);
+	     fos.close();
+	}
+    
     
     @SuppressLint("ParserError")
 	private void SlideShow() throws ConnectionLostException {
-    	
-    //	 String[] projection = {MediaStore.Images.Media.DATA}; //maybe move this outside of slideshow since it runs everytime
-	        
-	  //      if (scanAllPics == true) {
-	            
-	    //        cursor = managedQuery( MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
-	      //          projection, // Which columns to return
-	      //          null,       // Return all rows
-	       //         null,
-	       //         null);
-	       // }
-	      //  else {
-	       // 	cursor = managedQuery(MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
-	        //        projection, 
-	        //        MediaStore.Images.Media.DATA + " like ? ",
-	        //        new String[] {"%pixelart%"},  
-	        //        null);
-	      //  } 
-	        
-	       // showToast("started slideshow");
-	      //  columnIndex = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATA); //this is crashing things
 	      	        
-	        if (slideshowPosition == size) { //let's make sure we haven't reached the end
-	        	slideshowPosition = 0;
-	        }
-	        
-	        cursor.moveToPosition(slideshowPosition);
-	        columnIndex = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATA); //this is crashing things
-	        //showToast("colum index: " + getString(columnIndex)); //this does not work for some reason and causes slideshow to not go
-	        slideshowPosition++; //increment it so we can play the next one
-	        
-	        // Get image filename
-	        imagePath = cursor.getString(columnIndex);
-	        System.gc();
-	       // showToastShort("path: " + imagePath);
-	        WriteImagetoMatrix();	        
-	        imagedisplaydurationTimer.start(); //the image will stay on for as long as this timer;
+    	if (deviceFound == 1) {   
     	
+	    	if (pixelHardwareID.substring(0,4).equals("PIXL")) {  //download mode cuz it's a PIXEL V2 unit
+	    	   			
+	    			new createSlideShowAsync().execute();  //start the async task
+	    	}
+	    	
+	    	else { //it's a PIXEL V1 unit
+	    	
+	    		if (slideshowPosition == size) { //let's make sure we haven't reached the end
+		        	slideshowPosition = 0;
+		        }
+		        
+		        cursor.moveToPosition(slideshowPosition);
+		        columnIndex = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATA); //this is crashing things
+		        //showToast("colum index: " + getString(columnIndex)); //this does not work for some reason and causes slideshow to not go
+		        slideshowPosition++; //increment it so we can play the next one
+		        
+		        // Get image filename
+		        imagePath = cursor.getString(columnIndex);
+		        System.gc();
+		       // showToastShort("path: " + imagePath);
+		        WriteImagetoMatrix();	        
+		        imagedisplaydurationTimer.start(); //the image will stay on for as long as this timer;
+	    	}    
+    	}
+    	else {
+    		showToast("PIXEL was not found, did you Bluetooth pair to PIXEL?");
+    	}
     }
     
     private void stopSlideShow() { //stop the slideshow
     	
-    	imagedisplaydurationTimer.cancel();
- 		pausebetweenimagesdurationTimer.cancel();
+    	if (pixelHardwareID.substring(0,4).equals("PIXL")) {  
+    		try {
+				matrix_.interactive(); //go out of local playback mode
+			} catch (ConnectionLostException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+    	}
+    	else {
+	    	imagedisplaydurationTimer.cancel();
+	 		pausebetweenimagesdurationTimer.cancel();
+    	}
     	
     }
     
@@ -1258,7 +1773,7 @@ public class MainActivity extends IOIOActivity implements OnItemClickListener  {
 	    				        	cursor = managedQuery(MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
 	    				                projection, 
 	    				                MediaStore.Images.Media.DATA + " like ? ",
-	    				                new String[] {"%pixelart%"},  
+	    				                new String[] {"%pngs%"},  
 	    				                null);
 	    				        } 
 	    					

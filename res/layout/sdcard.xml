@@ -68,7 +68,7 @@
         android:id="@+id/sdcard"
         android:layout_width="fill_parent" 
         android:layout_height="fill_parent"
-        android:background="#FFFFFF"    
+        android:background="#565051"  
         android:verticalSpacing="10dp"
         android:horizontalSpacing="10dp" 
         android:stretchMode="columnWidth"

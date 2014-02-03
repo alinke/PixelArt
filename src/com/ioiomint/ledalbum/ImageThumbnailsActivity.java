@@ -637,14 +637,14 @@ public class ImageThumbnailsActivity extends IOIOActivity implements OnItemClick
     				this.startActivityForResult(intent, 0);
        }
     	
-    	if (item.getItemId() == R.id.menu_rescan)
+    	/*if (item.getItemId() == R.id.menu_rescan)
         {
      		
      		Intent intent = new Intent()
         				.setClass(this,
         				com.ioiomint.ledalbum.rescan.class);   
      				this.startActivityForResult(intent, 1);
-        }   	
+        }   	*/
     	
        return true;
     }
